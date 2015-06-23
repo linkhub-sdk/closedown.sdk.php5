@@ -16,7 +16,6 @@
 * We welcome any suggestions, feedbacks, blames or anythings.
 * ======================================================================================
 */
-
 require_once 'Linkhub/linkhub.auth.php';
 
 class Closedown
@@ -27,6 +26,7 @@ class Closedown
     
     private $Linkhub;
 	private $token;
+	private $__requestMode = LINKHUB_COMM_MODE;
 		    
     public function __construct($LinkID,$SecretKey) {
     	$this->Linkhub = Linkhub::getInstance($LinkID,$SecretKey);
@@ -113,30 +113,54 @@ class Closedown
 	}
          
     protected function executeCURL($uri, $postdata = null, $isPost = false) {
-		$http = curl_init((Closedown::ServiceURL).$uri);
-		$header = array();
+    	if($this->__requestMode != "STREAM") {
+			$http = curl_init((Closedown::ServiceURL).$uri);
+			$header = array();
 
-		$header[] = 'Authorization: Bearer '.$this->getsession_Token(null);
-		$header[] = 'x-api-version: '.Closedown::Version;
-		$header[] = 'Content-Type: Application/json';
+			$header[] = 'Authorization: Bearer '.$this->getsession_Token(null);
+			$header[] = 'x-api-version: '.Closedown::Version;
+			$header[] = 'Content-Type: Application/json';
 
-		if($isPost){
-			curl_setopt($http, CURLOPT_POST,1);
-			curl_setopt($http, CURLOPT_POSTFIELDS, $postdata);   
+			if($isPost){
+				curl_setopt($http, CURLOPT_POST,1);
+				curl_setopt($http, CURLOPT_POSTFIELDS, $postdata);   
+			}
+		
+			curl_setopt($http, CURLOPT_HTTPHEADER,$header);
+			curl_setopt($http, CURLOPT_RETURNTRANSFER, TRUE);
+		
+			$responseJson = curl_exec($http);
+			$http_status = curl_getinfo($http, CURLINFO_HTTP_CODE);
+		
+			curl_close($http);
+
+			if($http_status != 200) {
+				throw new ClosedownException($responseJson);
+			}
+			return json_decode($responseJson);
+		} else {
+			$params = array('http' => array(
+					 'ignore_errors' => TRUE,
+					 'method' => 'GET'
+	                ));
+	        	    
+			if($isPost) {
+				$params['http']['method'] = 'POST';
+				$params['http']['content'] = $postdata;
+	        } 
+	  	
+	  		$params['http']['header'] = 'Authorization: Bearer '.$this->getsession_Token(null)."\r\n".'x-api-version: '.Closedown::Version;
+	  		
+	  		$ctx = stream_context_create($params);
+	  		$response = file_get_contents((Closedown::ServiceURL).$uri, false, $ctx);
+	  		
+	  		if ($http_response_header[0] != "HTTP/1.1 200 OK") {
+	    		throw new ClosedownException($response);
+	  		}
+	  		
+			return json_decode($response);
+			
 		}
-		
-		curl_setopt($http, CURLOPT_HTTPHEADER,$header);
-		curl_setopt($http, CURLOPT_RETURNTRANSFER, TRUE);
-		
-		$responseJson = curl_exec($http);
-		$http_status = curl_getinfo($http, CURLINFO_HTTP_CODE);
-		
-		curl_close($http);
-
-		if($http_status != 200) {
-			throw new ClosedownException($responseJson);
-		}
-		return json_decode($responseJson);
 	}
 }
 
