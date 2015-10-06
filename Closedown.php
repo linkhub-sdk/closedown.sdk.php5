@@ -126,7 +126,6 @@ class Closedown
 				curl_setopt($http, CURLOPT_POSTFIELDS, $postdata);   
 			}
 		
-			curl_setopt($http, CURLOPT_HEADER,1);
 			curl_setopt($http, CURLOPT_HTTPHEADER,$header);
 			curl_setopt($http, CURLOPT_RETURNTRANSFER, TRUE);
 			curl_setopt($http, CURLOPT_ENCODING, 'gzip,deflate');
